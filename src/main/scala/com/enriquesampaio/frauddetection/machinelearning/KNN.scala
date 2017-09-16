@@ -1,7 +1,6 @@
-package frauddetection
+package com.enriquesampaio.frauddetection.machinelearning
 
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 
 object KNN {
   def main(args: Array[String]): Unit = {

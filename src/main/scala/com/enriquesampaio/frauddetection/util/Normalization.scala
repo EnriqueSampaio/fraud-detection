@@ -1,10 +1,8 @@
-package frauddetection
+package com.enriquesampaio.frauddetection.util
 
-import java.io.PrintWriter
-import java.io.File
+import java.io.{File, PrintWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
-
 
 object Normalization {
   def main(args: Array[String]): Unit = {
@@ -13,7 +11,7 @@ object Normalization {
 
     val rows = sc.textFile("resources/creditcard.csv")
       .map(row => row.split(","))
-      .map(row => (row(30), row.slice(0,30).map(value => value.toDouble)))
+      .map(row => (row(30)(1), row.slice(0,30).map(value => value.toDouble)))
     val count = rows.count()
 
     val means = rows.map(row => row._2).reduce{ case (x, y) =>
