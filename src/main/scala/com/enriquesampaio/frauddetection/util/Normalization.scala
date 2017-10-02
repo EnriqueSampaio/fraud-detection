@@ -4,12 +4,12 @@ import java.io.{File, PrintWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object Normalization {
-  def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("Fraud Detection").setMaster("local[4]")
+class Normalization(private val inputFilepath: String, private val outputFilepath: String) {
+  def normalize(): Unit = {
+    val conf = new SparkConf().setAppName("Fraud Detection - Normalization").setMaster("local[4]")
     val sc = new SparkContext(conf)
 
-    val rows = sc.textFile("resources/creditcard.csv")
+    val rows = sc.textFile(inputFilepath)
       .map(row => row.split(","))
       .map(row => (row(30)(1), row.slice(0,30).map(value => value.toDouble)))
     val count = rows.count()
@@ -30,7 +30,7 @@ object Normalization {
 
     sc.stop()
 
-    val pw = new PrintWriter(new File("output/creditcard_norm.csv"))
+    val pw = new PrintWriter(new File(outputFilepath))
 
     rowsNorm.map(row => row._2.mkString(",") + "," + row._1).foreach(row => pw.println(row))
     pw.close()

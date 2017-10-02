@@ -1,26 +1,27 @@
 package com.enriquesampaio.frauddetection.machinelearning
 
+import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 
-object KNN {
-  def main(args: Array[String]): Unit = {
+class KNN(private val k: Int, private val trainPath: String, private val testPath: String) {
+  def train(): Unit = {
     val conf = new SparkConf().setAppName("Fraud Detection").setMaster("local[4]")
     val sc = new SparkContext(conf)
 
-    val teste = Array(170348,1.9919760961759,0.158475887304227,-2.58344064503516,0.408669992998441,1.15114706077937,-0.0966947441848027,0.223050267455537,-0.0683838777747007,0.577829383844873,-0.888721675865145,0.491140241656789,0.728903319843614,0.380428045513993,-1.94888334870021,-0.832498136300872,0.519435549203291,0.903562376617253,1.19731471799372,0.593508846946918,-0.0176522567052908,-0.164350327825504,-0.295135166851559,-0.0721725311018398,-0.450261313423321,0.313266608995469,-0.289616585696882,0.00298758224342907,-0.0153088128485981,42.53)
+    val testSample = sc.textFile(testPath).map(row => (row(30), row.split(",").slice(0,30).map(feature => feature.toDouble)))
+    val trainSample = sc.textFile(trainPath).map(row => (row(30), row.split(",").slice(0,30).map(feature => feature.toDouble)))
 
-    val neighbours = sc.textFile("resources/creditcard.csv")
-      .map(line => line.split(","))
-      .map(line => (line(30), line.slice(0, 29)))
-      .map { case (target, feature) =>
-        (target, scala.math.sqrt(feature.map(feature => feature.toDouble).zip(teste).map { case (x, y) => scala.math.pow(x - y, 2) }.sum)) }
-      .takeOrdered(3)(Ordering[Double].on(pair => pair._2))
-      .map{ case (target, dist) => (target, 1) }
-
-    val result = sc.parallelize(neighbours).reduceByKey(_ + _)
-      .reduce((x, y) => if (x._2 > y._2) x else y)._1
-    println(result)
+    testSample.map(testRow => (testRow._1,
+        trainSample.map(trainRow => (trainRow._1, scala.math.sqrt(distance(trainRow._2, testRow._2).sum)))
+        .takeOrdered(k)(Ordering[Double].on(distRow => distRow._2))
+        .map(distRow => (distRow._1, 1)).groupBy(_._1) //Pra cada grupo fazer o reduce e pegar o maior
+      )
+    )
 
     sc.stop()
+  }
+
+  def distance(trainRow: Array[Double], testRow: Array[Double]): Array[Double] = {
+    trainRow.zip(testRow).map { case (x, y) => scala.math.pow(x - y, 2) }
   }
 }

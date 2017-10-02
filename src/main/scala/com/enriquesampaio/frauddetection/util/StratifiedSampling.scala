@@ -4,19 +4,19 @@ import java.io.{File, PrintWriter}
 
 import org.apache.spark.{SparkConf, SparkContext}
 
-object StratifiedSampling {
-  def main(args: Array[String]): Unit = {
-    val conf = new SparkConf().setAppName("Fraud Detection").setMaster("local[4]")
+class StratifiedSampling(private val inputFilepath: String, private val trainFilepath: String, private val testFilepath: String, private val trainProp: Double) {
+  def stratify(): Unit = {
+    val conf = new SparkConf().setAppName("Fraud Detection - Stratified Sampling").setMaster("local[4]")
     val sc = new SparkContext(conf)
 
-    val rows = sc.textFile("resources/creditcard.csv")
+    val rows = sc.textFile(inputFilepath)
       .map(row => row.split(","))
       .map(row => (row(30)(1), row.slice(0,30)))
 
     val count = rows.count()
     val targetsPercentage = rows.map(row => (row._1, 1)).reduceByKey(_ + _).map(target => (target._1, target._2.toDouble / count)).sortBy(_._1).collect()
 
-    val trainSize = (count * 0.7).floor.toInt
+    val trainSize = (count * trainProp).floor.toInt
     val testSize = count - trainSize
 
     val trainNegativeSize = (trainSize * targetsPercentage(0)._2).floor.toInt
@@ -31,13 +31,13 @@ object StratifiedSampling {
     val train = negatives(0).union(positives(0)).collect()
     val test = negatives(1).union(positives(1)).collect()
 
-    val pwTest = new PrintWriter(new File("output/creditcard_test.csv"))
+    val pwTest = new PrintWriter(new File(testFilepath))
 
     test.map(row => row._2.mkString(",") + "," + row._1).foreach(row => pwTest.println(row))
 
     pwTest.close()
 
-    val pwTrain = new PrintWriter(new File("output/creditcard_train.csv"))
+    val pwTrain = new PrintWriter(new File(trainFilepath))
 
     train.map(row => row._2.mkString(",") + "," + row._1).foreach(row => pwTrain.println(row))
 
