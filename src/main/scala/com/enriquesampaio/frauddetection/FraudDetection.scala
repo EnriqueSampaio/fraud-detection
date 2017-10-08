@@ -24,7 +24,7 @@ object FraudDetection {
         case "3" => {
           println("Insert K value: ")
           val k = readLine().toInt
-          new KNN(k, "output/creditcard_train.csv", "output/creditcard_test.csv").train()
+          println("Accuracy: " + new KNN(k, "output/creditcard_train.csv", "output/creditcard_test.csv").train())
         }
         case _ => println("Invalid option!")
       }
