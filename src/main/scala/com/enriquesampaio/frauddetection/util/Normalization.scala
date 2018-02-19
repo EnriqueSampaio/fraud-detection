@@ -2,13 +2,10 @@ package com.enriquesampaio.frauddetection.util
 
 import java.io.{File, PrintWriter}
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 
 class Normalization(private val inputFilepath: String, private val outputFilepath: String) {
-  def normalize(): Unit = {
-    val conf = new SparkConf().setAppName("Fraud Detection - Normalization").setMaster("local[4]")
-    val sc = new SparkContext(conf)
-
+  def normalize(sc: SparkContext): Unit = {
     val rows = sc.textFile(inputFilepath)
       .map(row => row.split(","))
       .map(row => (row(30)(1), row.slice(0,30).map(value => value.toDouble)))
@@ -27,8 +24,6 @@ class Normalization(private val inputFilepath: String, private val outputFilepat
     val rowsNorm = rows.map(row =>
       (row._1, row._2.zip(means).map{ case(feature, mean) => feature - mean }.zip(stddevs).map{ case(stage, stddev) => stage / stddev })
     ).collect()
-
-    sc.stop()
 
     val pw = new PrintWriter(new File(outputFilepath))
 

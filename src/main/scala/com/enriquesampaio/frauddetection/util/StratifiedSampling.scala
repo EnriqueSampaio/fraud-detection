@@ -2,13 +2,10 @@ package com.enriquesampaio.frauddetection.util
 
 import java.io.{File, PrintWriter}
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 
 class StratifiedSampling(private val inputFilepath: String, private val trainFilepath: String, private val testFilepath: String, private val trainProp: Double) {
-  def stratify(): Unit = {
-    val conf = new SparkConf().setAppName("Fraud Detection - Stratified Sampling").setMaster("local[4]")
-    val sc = new SparkContext(conf)
-
+  def stratify(sc: SparkContext): Unit = {
     val rows = sc.textFile(inputFilepath)
       .map(row => row.split(","))
       .map(row => (row(30)(1), row.slice(0,30)))
@@ -42,7 +39,5 @@ class StratifiedSampling(private val inputFilepath: String, private val trainFil
     train.map(row => row._2.mkString(",") + "," + row._1).foreach(row => pwTrain.println(row))
 
     pwTrain.close()
-
-    sc.stop()
   }
 }
