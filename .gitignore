@@ -2,9 +2,8 @@
 # (may want to keep parts of ‘project’)
 bin/
 project/
+!project/Dependencies.scala
 target/
-resources/
-output/
 build/
 
 # eclipse
