@@ -8,11 +8,11 @@ object FraudDetection {
   def main(args: Array[String]): Unit = {
     val usage =
       """
-        |Usage: spark-submit frad-detection.jar normalize|sample|knn [case sample -> (train percentage) double] [case knn -> (k) int]
+        |Usage: spark-submit frad-detection.jar --master masterNode normalize|sample|knn [case sample -> (train percentage) double] [case knn -> (k) int]
       """.stripMargin
     if (args.length == 0) println(usage)
 
-    val conf = new SparkConf().setAppName("Fraud Detection").setMaster("local[4]")
+    val conf = new SparkConf().setAppName("Fraud Detection")
     val sc = new SparkContext(conf)
 
     sc.setLogLevel("ERROR")
