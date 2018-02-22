@@ -6,42 +6,34 @@ import org.apache.spark.{SparkConf, SparkContext}
 
 object FraudDetection {
   def main(args: Array[String]): Unit = {
+    val usage =
+      """
+        |Usage: spark-submit frad-detection.jar normalize|sample|knn [case sample -> (train percentage) double] [case knn -> (k) int]
+      """.stripMargin
+    if (args.length == 0) println(usage)
+
     val conf = new SparkConf().setAppName("Fraud Detection").setMaster("local[4]")
     val sc = new SparkContext(conf)
 
     sc.setLogLevel("ERROR")
 
-    println("Choose an option: ")
-    println("[1] Normalize")
-    println("[2] Stratified Sampling")
-    println("[3] K-NN")
-    println("[0] Quit")
-
-    var option = readLine()
-
-    while (option != "0") {
-      option match {
-        case "1" => {
-          new Normalization("resources/creditcard.csv", "output/creditcard_norm.csv").normalize(sc)
-        }
-        case "2" => {
-          new StratifiedSampling("resources/creditcard.csv", "output/creditcard_train.csv", "output/creditcard_test.csv", 0.7).stratify(sc)
-        }
-        case "3" => {
-          println("Insert K value: ")
-          val k = readLine().toInt
-          println("Accuracy: " + new KNN(k, "output/creditcard_train.csv", "output/creditcard_test.csv").train(sc))
-        }
-        case _ => println("Invalid option!")
+    args(0) match {
+      case "normalize" => {
+        new Normalization("resources/creditcard.csv", "output/creditcard_norm.csv").normalize(sc)
       }
-
-      println("Choose an option: ")
-      println("[1] Normalize")
-      println("[2] Stratified Sampling")
-      println("[3] K-NN")
-      println("[0] Quit")
-
-      option = readLine()
+      case "sample" => {
+        if (args(1) !== null) {
+          new StratifiedSampling("resources/creditcard.csv", "output/creditcard_train.csv", "output/creditcard_test.csv", args(1).toDouble).stratify(sc)
+        }
+        new StratifiedSampling("resources/creditcard.csv", "output/creditcard_train.csv", "output/creditcard_test.csv", 0.7).stratify(sc)
+      }
+      case "knn" => {
+        if (args(1) !== null) {
+          println(new KNN(args(1).toInt, "output/creditcard_train.csv", "output/creditcard_test.csv").train(sc))
+        }
+        println(new KNN(3, "output/creditcard_train.csv", "output/creditcard_test.csv").train(sc))
+      }
+      case _ => println("Invalid option!")
     }
 
     sc.stop()

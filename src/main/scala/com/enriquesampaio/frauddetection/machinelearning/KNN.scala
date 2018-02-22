@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
 class KNN(private val k: Int, private val trainPath: String, private val testPath: String) {
-  def train(sc: SparkContext): Double = {
+  def train(sc: SparkContext): String = {
 
     val testSample = sc.textFile(testPath).map(row => row.split(",")).map(row => (row(30), row.slice(0,30).map(feature => feature.toDouble)))
     val trainSample = sc.broadcast(sc.textFile(trainPath).map(row => row.split(",")).map(row => (row(30), row.slice(0,30).map(feature => feature.toDouble))).collect())
@@ -26,16 +26,39 @@ class KNN(private val k: Int, private val trainPath: String, private val testPat
       )
     )
 
+    val t_positive = sc.accumulator(0, "True Positive")
+    val t_negative = sc.accumulator(0, "True Negative")
+    val f_positive = sc.accumulator(0, "False Positive")
+    val f_negative = sc.accumulator(0, "False Negative")
+
     val accuracy = results.map { result =>
       if (result._1 == result._2) {
+        if (result._1 == "1") {
+          t_positive+= 1
+        } else {
+          t_negative+= 1
+        }
         1
       } else {
+        if (result._1 == "1") {
+          f_positive+= 1
+        } else {
+          f_negative+= 1
+        }
         0
       }
     }.reduce(_+_).toDouble / results.count()
 
+    val precision = t_positive.value / (t_positive.value + f_positive.value)
+    val recall = t_positive.value / (t_positive.value + f_negative.value)
+    val f_measure = 2 * ((precision * recall) / (precision + recall))
+
     trainSample.destroy()
 
-    accuracy
+    s"""Accuracy: $accuracy
+       |Precision: $precision
+       |Recall: $recall
+       |F-Measure: $f_measure
+     """.stripMargin
   }
 }
