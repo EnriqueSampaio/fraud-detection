@@ -5,11 +5,16 @@ import io.jvm.uuid._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
-class KNN(private val k: Int, private val trainPath: String, private val testPath: String) {
+class KNN(private val k: Int) {
   def train(sc: SparkContext): String = {
 
-    val testSample = sc.textFile(testPath).map(row => row.split(",")).map(row => (row(30), row.slice(0,30).map(feature => feature.toDouble)))
-    val trainSample = sc.broadcast(sc.textFile(trainPath).map(row => row.split(",")).map(row => (row(30), row.slice(0,30).map(feature => feature.toDouble))).collect())
+    val testSample = sc.textFile("output/stratified_test")
+        .map(row => row.split(","))
+        .map(row => (row(0), row.slice(1,30).map(feature => feature.toDouble)))
+    val trainSample = sc.broadcast(sc.textFile("output/stratified_train")
+        .map(row => row.split(","))
+        .map(row => (row(0), row.slice(1,30).map(feature => feature.toDouble)))
+        .collect())
 
     val neighbours = sc.broadcast(k)
 
