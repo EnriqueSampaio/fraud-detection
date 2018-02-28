@@ -1,13 +1,13 @@
 package com.enriquesampaio.frauddetection.machinelearning
 
-import io.jvm.uuid._
+import java.io.{File, PrintWriter}
 
+import io.jvm.uuid._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 
 class KNN(private val k: Int) {
-  def train(sc: SparkContext): String = {
-
+  def train(sc: SparkContext): Unit = {
     val testSample = sc.textFile("output/stratified_test")
         .map(row => row.split(","))
         .map(row => (row(0), row.slice(1,30).map(feature => feature.toDouble)))
@@ -19,16 +19,16 @@ class KNN(private val k: Int) {
     val neighbours = sc.broadcast(k)
 
     val results = testSample
-      .map(testRow => (
-        testRow._1,
-        trainSample.value
-            .map(trainRow => (trainRow._1, scala.math.sqrt(trainRow._2.zip(testRow._2).map { case (x, y) => scala.math.pow(x - y, 2) }.sum) ))
-            .sortBy(_._2)
-            .take(neighbours.value)
-            .map(distRow => (distRow._1, 1)).groupBy(_._1)
-            .map(label => (label._1, label._2.foldLeft(0)((groupedA, groupedB) => groupedA + groupedB._2)))
-            .maxBy(_._2)._1
-      )
+        .map(testRow => (
+          testRow._1,
+          trainSample.value
+              .map(trainRow => (trainRow._1, scala.math.sqrt(trainRow._2.zip(testRow._2).map { case (x, y) => scala.math.pow(x - y, 2) }.sum) ))
+              .sortBy(_._2)
+              .take(neighbours.value)
+              .map(distRow => (distRow._1, 1)).groupBy(_._1)
+              .map(label => (label._1, label._2.foldLeft(0)((groupedA, groupedB) => groupedA + groupedB._2)))
+              .maxBy(_._2)._1
+        )
     )
 
     val t_positive = sc.accumulator(0, "True Positive")
@@ -60,10 +60,13 @@ class KNN(private val k: Int) {
 
     trainSample.destroy()
 
-    s"""Accuracy: $accuracy
-       |Precision: $precision
-       |Recall: $recall
-       |F-Measure: $f_measure
-     """.stripMargin
+    val output = new File("output/knn_results.out")
+    val pw = new PrintWriter(output)
+
+    pw.println("Accuracy: " + accuracy)
+    pw.println("Precision: " + precision)
+    pw.println("Recall: " + recall)
+    pw.println("F-measure: " + f_measure)
+    pw.close()
   }
 }

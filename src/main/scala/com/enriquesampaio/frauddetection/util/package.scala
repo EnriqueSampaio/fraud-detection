@@ -4,6 +4,10 @@ import java.io.{File, IOException, PrintWriter}
 
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.feature.StandardScaler
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.rdd.RDD
 
 package object util {
   def clean(filepath: String): Unit ={
@@ -22,40 +26,34 @@ package object util {
       .map(row => row(30) + "," + row.slice(0,30).mkString(",")).saveAsTextFile("output/rdd_dataset")
   }
 
-  def normalize(sc: SparkContext): Unit = {
+  def toLabeledPoints(rows: RDD[String]): RDD[LabeledPoint] = {
+    rows
+      .map(_.split(","))
+      .map(row => LabeledPoint(row(0).toDouble, Vectors.dense(row.slice(1, 30).map(_.toDouble))))
+  }
+
+  def scale(sc: SparkContext): Unit = {
     clean("output/normalized")
-    val rows = sc.textFile("output/rdd_dataset")
-        .map(row => row.split(","))
-        .map(row => (row(0), row.slice(1, 30).map(feature => feature.toDouble)))
+    val rows = toLabeledPoints(sc.textFile("output/rdd_dataset"))
 
-    val count = rows.count()
+    val scaler = new StandardScaler(true, true).fit(rows.map(_.features))
 
-    val means = rows.map(row => row._2).reduce{ case (x, y) =>
-      x.zip(y).map { case (x, y) => x + y }
-    }.map(featureSum => featureSum / count)
-
-    val stddevs = rows.map(row => row._2).map(row =>
-      row.zip(means).map{ case (feature, mean) => scala.math.pow(feature - mean, 2) }
-    ).reduce{ case (x, y) =>
-      x.zip(y).map { case (x, y) => x + y }
-    }.map(dev => scala.math.sqrt(dev / count))
-
-    val rowsNorm = rows.map(row =>
-      (row._1, row._2.zip(means).map{ case(feature, mean) => feature - mean }.zip(stddevs).map{ case(stage, stddev) => stage / stddev })
-    ).map(row => row._1 + "," + row._2.mkString(",")).saveAsTextFile("output/normalized")
+    rows
+      .map(row => (row.label, scaler.transform(row.features)))
+      .map(row => row._1 + "," + row._2.toArray.mkString(","))
+      .saveAsTextFile("output/scaled")
   }
 
   def stratify(trainProp: Double, sc: SparkContext): Unit = {
     clean("output/stratified_train")
     clean("output/stratified_test")
-    val rows = sc.textFile("output/normalized")
-      .map(row => row.split(","))
-      .map(row => (row(0), row.slice(1,30).map(feature => feature.toDouble)))
 
-    val negatives = rows.filter(row => row._1.equals("0")).randomSplit(Array(trainProp, 1 - trainProp))
-    val positives = rows.filter(row => row._1.equals("1")).randomSplit(Array(trainProp, 1 - trainProp))
+    val rows = toLabeledPoints(sc.textFile("output/normalized"))
 
-    val train = negatives(0).union(positives(0)).map(row => row._1 + "," + row._2.mkString(",")).saveAsTextFile("output/stratified_train")
-    val test = negatives(1).union(positives(1)).map(row => row._1 + "," + row._2.mkString(",")).saveAsTextFile("output/stratified_test")
+    val negatives = rows.filter(row => row.label.equals(0.0)).randomSplit(Array(trainProp, 1 - trainProp))
+    val positives = rows.filter(row => row.label.equals(1.0)).randomSplit(Array(trainProp, 1 - trainProp))
+
+    negatives(0).union(positives(0)).map(row => row.label + "," + row.features.toArray.mkString(",")).saveAsTextFile("output/stratified_train")
+    negatives(1).union(positives(1)).map(row => row.label + "," + row.features.toArray.mkString(",")).saveAsTextFile("output/stratified_test")
   }
 }

@@ -21,9 +21,9 @@ object FraudDetection {
     sc.setLogLevel("ERROR")
 
     args(0) match {
-      case "normalize" => {
+      case "scale" => {
         saveAsRdd("resources/creditcard.csv", sc)
-        normalize(sc)
+        scale(sc)
       }
       case "sample" => {
         if (args.length == 2) {
@@ -33,9 +33,9 @@ object FraudDetection {
       }
       case "knn" => {
         if (args.length == 2) {
-          println(new KNN(args(1).toInt).train(sc))
+          new KNN(args(1).toInt).train(sc)
         }
-        println(new KNN(3).train(sc))
+        new KNN(3).train(sc)
       }
       case _ => println("Invalid Option!")
     }
